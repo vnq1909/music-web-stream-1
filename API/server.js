@@ -16,25 +16,35 @@ const app = express();
 
 /// MIDDLEWARES
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173', // Frontend URL
+  credentials: true
+}));
 app.use(express.urlencoded({ extended: true }));
 
-app.use(express.static('../dist'))
-
-// Thêm các ROUTES vào ứng dụng
-app.use("/api/v1/auth", authRoutes);
-app.use("/api/v1/song", userJwtMiddleware, songRoutes);
-app.use("/api/v1/playlist",userJwtMiddleware, playlistRoutes);
+// API ROUTES - Đặt trước static files và catch-all route
 // Các routes chung
 app.get("/api/v1/stream/:filename", streamSong);
-app.get('/api/v1/songs',getSongs)
+app.get('/api/v1/songs', getSongs);
 
-console.log(path.resolve('../dist/index.html'))
+// Auth routes
+app.use("/api/v1/auth", authRoutes);
+
+// Protected routes
+app.use("/api/v1/song", songRoutes);
+app.use("/api/v1/playlist", userJwtMiddleware, playlistRoutes);
+
+// STATIC FILES - Đặt sau API routes
+app.use(express.static('../dist'));
+
+// Catch-all route - Luôn đặt cuối cùng
 app.get("*", (req, res) => {
   res.sendFile(path.resolve('../dist/index.html'));
 });
  
 // Lắng nghe máy chủ
-app.listen(1337, () => {
-  console.log(`Server is running at http://localhost:5173`);
+const PORT = process.env.PORT || 1337;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+  console.log(`API routes are mounted at /api/v1/`);
 });

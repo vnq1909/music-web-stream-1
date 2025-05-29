@@ -1,7 +1,8 @@
 import bcrypt from "bcryptjs";
 import jwt from 'jsonwebtoken'
 import conn from "../config/db.js";
- 
+import { ObjectId } from 'mongodb';
+
 // @desc    Đăng nhập người dùng
 // @route   POST /api/v1/auth/login
 // @access  Public
@@ -27,7 +28,8 @@ export const login = async (req, res) => {
             res.status(200).json({
                 message:'User logged in',
                 status:'success',
-                token: generateToken(user._id)
+                token: generateToken(user._id, user.isAdmin || false),
+                isAdmin: user.isAdmin || false
             })
         }
         else{ 
@@ -45,7 +47,7 @@ export const login = async (req, res) => {
 
 
 //@desc: Đăng ký người dùng mới
-//@route : POST /api/user/login
+//@route : POST /api/
 //@access  Public
 export const register = async (req, res) => {
   try {
@@ -78,7 +80,8 @@ export const register = async (req, res) => {
       fullName,
       email,
       password: hashedPassword,
-      playllists: []
+      playllists: [],
+      isAdmin: false
     });
     if (user) {
       res.status(201).json({
@@ -95,9 +98,56 @@ export const register = async (req, res) => {
   }
 };
 
+// @desc    Lấy danh sách người dùng và bài hát của họ
+// @route   GET /api/auth/users
+// @access  Admin
+export const getAllUsers = async (req, res) => {
+  try {
+    const db = conn.db('music_streaming');
+    const usersCollection = db.collection('users');
+    const songsCollection = db.collection('songs');
+    
+    const users = await usersCollection.find({}, { projection: { password: 0 } }).toArray();
+    
+    // Lấy bài hát cho mỗi user
+    const usersWithSongs = await Promise.all(users.map(async (user) => {
+      const userSongs = await songsCollection.find({ uploadedBy: user._id.toString() }).toArray();
+      return {
+        ...user,
+        songs: userSongs
+      };
+    }));
+
+    res.status(200).json(usersWithSongs);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc    Xóa người dùng
+// @route   DELETE /api/auth/users/:id
+// @access  Admin
+export const deleteUser = async (req, res) => {
+  try {
+    const db = conn.db('music_streaming');
+    const collection = db.collection('users');
+    
+    const { id } = req.params;
+    const result = await collection.deleteOne({ _id: new ObjectId(id) });
+    
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    res.status(200).json({ message: 'User deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // Tạo JWT cho người dùng 
-const generateToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
+const generateToken = (id, isAdmin) => {
+    return jwt.sign({ id, isAdmin }, process.env.JWT_SECRET, {
         expiresIn: "7d",
     });
-    }
+}

@@ -8,6 +8,7 @@ import { CgPlayList } from "react-icons/cg";
 import {GiMusicSpell} from 'react-icons/gi'
 import { BiWindowClose } from "react-icons/bi";
 import { BsFillMenuAppFill } from "react-icons/bs";
+import { decodeToken } from "react-jwt";
 
 import "../utils/style.css";
 import Logo from "../assets/Logo";
@@ -16,7 +17,9 @@ const Navbar = () => {
   const toggleMenu = () => {
     sideBar.setShowMenu(!sideBar.showMenu);
   };
-  const token = localStorage.getItem("access_token");
+  const token = localStorage.getItem("access_token") || null;
+  let decoded;
+  if(token) {decoded = decodeToken(token)};
   const navigate = useNavigate();
 
   const logOut = () => {
@@ -45,6 +48,12 @@ const Navbar = () => {
             <GoHome />
             <span className="">Home</span>
           </Link>
+          {decoded?.isAdmin && (
+            <Link to="/admin" className="flex justify-center items-center space-x-2">
+              <GoHome />
+              <span className="">Admin</span>
+            </Link>
+          )}
           <Link
             to="/explore"
             className="flex justify-center items-center space-x-2"
@@ -113,6 +122,12 @@ const Navbar = () => {
             <GoHome />
             <span className="">Home</span>
           </Link>
+          {decoded?.isAdmin && (
+            <Link to="/admin" className="flex justify-center items-center space-x-2">
+              <GoHome />
+              <span className="">Admin</span>
+            </Link>
+          )}
           <Link
             to="/explore"
             className="flex justify-center items-center space-x-2"

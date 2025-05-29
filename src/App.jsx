@@ -10,6 +10,8 @@ import CreatePlayList from "./pages/CreatePlaylist";
 import AudioPlayer from "./utils/AudioPlayer";
 import Register from "./pages/Register";
 import Playlist from "./pages/Playlist";
+import AdminHome from "./pages/AdminHome";
+import ManageUsers from "./pages/ManageUsers";
 
 //Importing Contexts
 import { SidebarContextState } from "./Context/SibebarContext";
@@ -49,6 +51,14 @@ const router = createBrowserRouter([
       {
         path: "/",
         element: <Home />,
+      },
+      {
+        path: "/admin",
+        element: <AdminHome />,
+      },
+      {
+        path: "/manage-users",
+        element: <ManageUsers />,
       },
       {
         path: "/upload",

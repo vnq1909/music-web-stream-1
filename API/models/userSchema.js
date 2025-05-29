@@ -21,6 +21,10 @@ const userSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  isAdmin: {
+    type: Boolean,
+    default: false
+  },
   playLists: [
     {
       listName: { type: String, required: true, trim: true },

@@ -4,39 +4,47 @@ import { SongContext } from "./Context/SongContext";
 import { BsFillPlayCircleFill } from "react-icons/bs";
 import { BiSkipNextCircle, BiSkipPreviousCircle } from "react-icons/bi";
 import { HiPause } from "react-icons/hi";
+import { QueueContext } from "./Context/QueueContex";
 
 const MusicPlayer = () => {
   //References
   const audioRef = useRef();
   const progressBar = useRef(); // reference our progress bar
   const animationRef = useRef(); // reference the animation
-  const sourceRef = useRef();
 
   //Context
-  const { song } = useContext(SongContext);
-  // sourceRef.current.src = 'http://localhost:1337/1224.mp3';
+  const { song, audio, __URL__ } = useContext(SongContext);
+  const { queue } = useContext(QueueContext);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [currentSongIndex, setCurrentSongIndex] = useState(0);
 
   const togglePlayPause = () => {
     const prevValue = isPlaying;
-    console.log(prevValue)
     setIsPlaying(!prevValue);
     if (!prevValue) {
-      audioRef.current.play();
+      audio.play();
       animationRef.current = requestAnimationFrame(whilePlaying);
     } else {
-      audioRef.current.pause();
+      audio.pause();
       cancelAnimationFrame(animationRef.current);
     }
+    song.setIsPlaying(!prevValue);
   };
   
   useEffect(() => {
-    const seconds = Math.floor(audioRef.current.duration);
+    const seconds = Math.floor(audio.duration);
     setDuration(seconds);
     progressBar.current.max = seconds;
-  }, [audioRef?.current?.loadedmetadata, audioRef?.current?.readyState]);
+
+    // Tự động phát bài tiếp theo khi bài hiện tại kết thúc
+    audio.addEventListener("ended", nextSong);
+
+    return () => {
+      audio.removeEventListener("ended", nextSong);
+    };
+  }, [audio.duration, queue, currentSongIndex]);
 
   const calculateTime = (secs) => {
     const minutes = Math.floor(secs / 60);
@@ -47,13 +55,13 @@ const MusicPlayer = () => {
   };
 
   const whilePlaying = () => {
-    progressBar.current.value = audioRef.current.currentTime;
+    progressBar.current.value = audio.currentTime;
     changePlayerCurrentTime();
     animationRef.current = requestAnimationFrame(whilePlaying);
   };
 
   const changeRange = () => {
-    audioRef.current.currentTime = progressBar.current.value;
+    audio.currentTime = progressBar.current.value;
     changePlayerCurrentTime();
   };
 
@@ -65,76 +73,54 @@ const MusicPlayer = () => {
     setCurrentTime(progressBar.current.value);
   };
 
-  // Next and Previous Song
+  // Next Song
   const nextSong = () => {
-    //pausing the ongoing song
-    audioRef.current.pause();
-
-    //finding the index of the current song
-    const index = songs.findIndex((song) => {
-      return (
-        song.split("/")[3] === sourceRef.current.src.toString().split("/")[5]
-      );
-    });
-
-    //if the current song is the last song in the array
-    if (index === songs.length - 1) {
-      sourceRef.current.src = songs[0];
-    } else {
-      sourceRef.current.src = songs[index + 1];
-    }
-
-    //playing the next song
+    if (queue.length === 0) return;
+    
+    const nextIndex = (currentSongIndex + 1) % queue.length;
+    const nextSong = queue[nextIndex];
+    
+    audio.pause();
+    song.setSongName(nextSong.title);
+    song.setArtistName(nextSong.artistName);
+    song.setSongUrl(`${__URL__}/api/v1/stream/${nextSong.songSrc}`);
+    audio.src = `${__URL__}/api/v1/stream/${nextSong.songSrc}`;
+    audio.load();
+    audio.play();
     setIsPlaying(true);
-    audioRef.current.load();
-    audioRef.current.play();
+    song.setIsPlaying(true);
+    setCurrentSongIndex(nextIndex);
   };
 
+  // Previous Song
   const previousSong = () => {
-    //pausing the ongoing song
-    audioRef.current.pause();
-
-    const index = songs.findIndex((song) => {
-      return (
-        song.split("/")[3] === sourceRef.current.src.toString().split("/")[5]
-      );
-    });
-
-    //if the current song is the last song in the array
-    if (index === 0) {
-      sourceRef.current.src = songs[songs.length - 1];
-    } else {
-      sourceRef.current.src = songs[index - 1];
-    }
-
-    //playing the next song
+    if (queue.length === 0) return;
+    
+    const prevIndex = currentSongIndex === 0 ? queue.length - 1 : currentSongIndex - 1;
+    const prevSong = queue[prevIndex];
+    
+    audio.pause();
+    song.setSongName(prevSong.title);
+    song.setArtistName(prevSong.artistName);
+    song.setSongUrl(`${__URL__}/api/v1/stream/${prevSong.songSrc}`);
+    audio.src = `${__URL__}/api/v1/stream/${prevSong.songSrc}`;
+    audio.load();
+    audio.play();
     setIsPlaying(true);
-    audioRef.current.load();
-    audioRef.current.play();
+    song.setIsPlaying(true);
+    setCurrentSongIndex(prevIndex);
   };
 
   return (
-    <div className="fixed bg-gray-200 bottom-0 right-0 left-0 px-5 flex  justify-between  items-center space-y-5">
-      <div className=" lg:block flex space-x-5">
-        {/* Image */}
+    <div className="fixed bg-gray-200 bottom-0 right-0 left-0 px-5 flex justify-between items-center space-y-5">
+      <div className="lg:block flex space-x-5">
         <img src={stereo} alt="" className="rounded-lg w-12 lg:w-24" />
-        {/* Song Name and Artist Name */}
         <div className="flex justify-center items-center flex-col">
-          <h3 className="">Song Name</h3>
-          <p className="">Artist Name</p>
+          <h3 className="">{song.songName}</h3>
+          <p className="">{song.songArtist}</p>
         </div>
       </div>
 
-      {/* Audio tag */}
-      <audio ref={audioRef} preload="auto">
-        <source
-          ref={sourceRef}
-          src={`http://localhost:1337/api/v1/stream/4979f9de26aadec57449c4690ab0ad60`}
-          type="audio/mpeg"
-        />
-      </audio>
-
-      {/* Progress Bar and time duration */}
       <div className="hidden lg:block lg:w-full">
         <input
           type="range"
@@ -151,14 +137,11 @@ const MusicPlayer = () => {
         </div>
       </div>
 
-      {/* Audio controls */}
       <div className="flex justify-center items-center">
-        {/* backward */}
         <button onClick={previousSong}>
           <BiSkipPreviousCircle size={50} />
         </button>
 
-        {/* Play / Pause */}
         <button className="" onClick={togglePlayPause}>
           {isPlaying ? (
             <HiPause size={60} />
@@ -167,7 +150,6 @@ const MusicPlayer = () => {
           )}
         </button>
 
-        {/* forward */}
         <button onClick={nextSong}>
           <BiSkipNextCircle size={50} />
         </button>
